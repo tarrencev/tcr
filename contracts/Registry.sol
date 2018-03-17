@@ -50,7 +50,7 @@ contract Registry {
     // Maps challengeIDs to associated challenge data
     mapping(uint => Challenge) public challenges;
 
-    // Maps memberes to associated member data
+    // Maps member to associated member data
     mapping(address => Member) public members;
 
     // Global Variables
@@ -124,7 +124,7 @@ contract Registry {
 
     /**
     @dev                Allows a member to increase their unstaked deposit.
-    @param _amount      The number of ERC20 tokens to increase a members's unstaked deposit
+    @param _amount      The number of ERC20 tokens to increase a members unstaked deposit
     */
     function deposit(uint _amount) external {
         Member storage member = members[msg.sender];
@@ -179,7 +179,7 @@ contract Registry {
     @dev                Starts a poll for a member which is either in the apply stage or
                         already in the whitelist. Tokens are taken from the challenger and the
                         applicant's deposits are locked.
-    @param _member        User being challenged
+    @param _member      Member being challenged
     @param _data        Extra data relevant to the challenge. Think IPFS hashes.
     */
     function challenge(address _member, string _data) external returns (uint challengeID) {
@@ -312,7 +312,7 @@ contract Registry {
     }
 
     /**
-    @dev                Returns true if the provided user is whitelisted
+    @dev                Returns true if the provided member is whitelisted
     @param _member      The member being examined
     */
     function isWhitelisted(address _member) view public returns (bool whitelisted) {
