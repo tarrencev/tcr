@@ -32,13 +32,6 @@ contract Registry {
         uint challengeID;       // Corresponds to a PollID in PLCRVoting
     }
 
-    struct Node {
-      string category;          // Node category
-      bytes32 parentHash;       // Node parent hash
-      Member[] members;
-      Node[] children;
-    }
-
     struct Challenge {
         uint rewardPool;        // (remaining) Pool of tokens to be distributed to winning voters
         address challenger;     // Owner of Challenge
@@ -57,7 +50,7 @@ contract Registry {
     // Maps challengeIDs to associated challenge data
     mapping(uint => Challenge) public challenges;
 
-    // Maps memberHashes to associated memberHash data
+    // Maps memberes to associated member data
     mapping(address => Member) public members;
 
     // Global Variables
@@ -106,7 +99,7 @@ contract Registry {
     // --------------------
 
     /**
-    @dev                Allows a user to start an application. Takes tokens from user and sets
+    @dev                Allows a user to start an application for membership. Takes tokens from user and sets
                         apply stage end time.
     @param _amount      The number of ERC20 tokens a user is willing to potentially stake
     @param _data        Extra data relevant to the application. Think IPFS hashes.
@@ -130,8 +123,8 @@ contract Registry {
     }
 
     /**
-    @dev                Allows the owner of a memberHash to increase their unstaked deposit.
-    @param _amount      The number of ERC20 tokens to increase a user's unstaked deposit
+    @dev                Allows a member to increase their unstaked deposit.
+    @param _amount      The number of ERC20 tokens to increase a members's unstaked deposit
     */
     function deposit(uint _amount) external {
         Member storage member = members[msg.sender];
@@ -144,7 +137,7 @@ contract Registry {
     }
 
     /**
-    @dev                Allows the owner of a memberHash to decrease their unstaked deposit.
+    @dev                Allows a member to decrease their unstaked deposit.
     @param _amount      The number of ERC20 tokens to withdraw from the unstaked deposit.
     */
     function withdraw(uint _amount) external {
@@ -161,8 +154,8 @@ contract Registry {
     }
 
     /**
-    @dev                Allows the owner of a memberHash to remove the memberHash from the whitelist
-                        Returns all tokens to the owner of the memberHash
+    @dev                Allows a member to remove themself from the whitelist
+                        Returns all tokens to the member
     */
     function exit() external {
         Member storage member = members[msg.sender];
@@ -183,29 +176,29 @@ contract Registry {
     // -----------------------
 
     /**
-    @dev                Starts a poll for a memberHash which is either in the apply stage or
+    @dev                Starts a poll for a member which is either in the apply stage or
                         already in the whitelist. Tokens are taken from the challenger and the
                         applicant's deposits are locked.
-    @param _user        User being challenged
+    @param _member        User being challenged
     @param _data        Extra data relevant to the challenge. Think IPFS hashes.
     */
-    function challenge(address _user, string _data) external returns (uint challengeID) {
-        Member storage member = members[_user];
+    function challenge(address _member, string _data) external returns (uint challengeID) {
+        Member storage member = members[_member];
         uint deposit = parameterizer.get("minDeposit");
 
         // Member must be in apply stage or already on the whitelist
-        require(appWasMade(_user) || member.whitelisted);
+        require(appWasMade(_member) || member.whitelisted);
         // Prevent multiple challenges
         require(member.challengeID == 0 || challenges[member.challengeID].resolved);
 
         if (member.unstakedDeposit < deposit) {
             // Not enough tokens, member auto-delisted
-            resetMember(_user);
+            resetMember(_member);
             return 0;
         }
 
         // Takes tokens from challenger
-        require(token.transferFrom(_user, this, deposit));
+        require(token.transferFrom(msg.sender, this, deposit));
 
         // Starts poll
         uint pollID = voting.startPoll(
@@ -222,18 +215,18 @@ contract Registry {
             totalTokens: 0
         });
 
-        // Updates memberHash to store most recent challenge
+        // Updates member to store most recent challenge
         member.challengeID = pollID;
 
-        // Locks tokens for memberHash during challenge
+        // Locks tokens for member during challenge
         member.unstakedDeposit -= deposit;
 
-        _Challenge(msg.sender, deposit, pollID, _data);
+        _Challenge(_member, deposit, pollID, _data);
         return pollID;
     }
 
     /**
-    @dev                Updates a memberHash's status from 'application' to 'member' or resolves
+    @dev                Updates a members status from 'application' to 'member' or resolves
                         a challenge if one exists.
     */
     function updateStatus() public {
@@ -299,18 +292,19 @@ contract Registry {
 
     /**
     @dev                Determines whether the given user be whitelisted.
+    @param _member      The member whose status is to be examined
     */
-    function canBeWhitelisted(address _user) view public returns (bool) {
-        uint challengeID = members[_user].challengeID;
+    function canBeWhitelisted(address _member) view public returns (bool) {
+        uint challengeID = members[_member].challengeID;
 
         // Ensures that the application was made,
         // the application period has ended,
-        // the memberHash can be whitelisted,
+        // the member can be whitelisted,
         // and either: the challengeID == 0, or the challenge has been resolved.
         if (
-            appWasMade(_user) &&
-            members[_user].applicationExpiry < now &&
-            !isWhitelisted(_user) &&
+            appWasMade(_member) &&
+            members[_member].applicationExpiry < now &&
+            !isWhitelisted(_member) &&
             (challengeID == 0 || challenges[challengeID].resolved == true)
         ) { return true; }
 
@@ -319,39 +313,39 @@ contract Registry {
 
     /**
     @dev                Returns true if the provided user is whitelisted
-    @param _user The users address
+    @param _member      The member being examined
     */
-    function isWhitelisted(address _user) view public returns (bool whitelisted) {
-        return members[_user].whitelisted;
+    function isWhitelisted(address _member) view public returns (bool whitelisted) {
+        return members[_member].whitelisted;
     }
 
     /**
-    @dev                Returns true if apply was called for this memberHash
-    @param _user The users address
+    @dev                Returns true if apply was called for this member
+    @param _member      The member being examined
     */
-    function appWasMade(address _user) view public returns (bool exists) {
-        return members[_user].applicationExpiry > 0;
+    function appWasMade(address _member) view public returns (bool exists) {
+        return members[_member].applicationExpiry > 0;
     }
 
     /**
     @dev                Returns true if the application/member has an unresolved challenge
-    @param _user The users address
+    @param _member      The member being examined
     */
-    function challengeExists(address _user) view public returns (bool) {
-        uint challengeID = members[_user].challengeID;
+    function challengeExists(address _member) view public returns (bool) {
+        uint challengeID = members[_member].challengeID;
 
-        return (members[_user].challengeID > 0 && !challenges[challengeID].resolved);
+        return (members[_member].challengeID > 0 && !challenges[challengeID].resolved);
     }
 
     /**
     @dev                Determines whether voting has concluded in a challenge for a given
                         member. Throws if no challenge exists.
-    @param _user The users address
+    @param _member      The member being examined
     */
-    function challengeCanBeResolved(address _user) view public returns (bool) {
-        uint challengeID = members[_user].challengeID;
+    function challengeCanBeResolved(address _member) view public returns (bool) {
+        uint challengeID = members[_member].challengeID;
 
-        require(challengeExists(_user));
+        require(challengeExists(_member));
 
         return voting.pollEnded(challengeID);
     }
@@ -386,37 +380,37 @@ contract Registry {
 
     /**
     @dev                Determines the winner in a challenge. Rewards the winner tokens and
-                        either whitelists or de-whitelists the memberHash.
-    @param _user The users address
+                        either whitelists or de-whitelists the member.
+    @param _member      The member being examined
     */
-    function resolveChallenge(address _user) private {
-        uint challengeID = members[_user].challengeID;
+    function resolveChallenge(address _member) private {
+        uint challengeID = members[_member].challengeID;
 
         // Calculates the winner's reward,
         // which is: (winner's full stake) + (dispensationPct * loser's stake)
         uint reward = challengeWinnerReward(challengeID);
 
-        // Records whether the memberHash is a memberHash or an application
-        bool wasWhitelisted = isWhitelisted(_user);
+        // Records whether the member is a member or an application
+        bool wasWhitelisted = isWhitelisted(_member);
 
         // Case: challenge failed
         if (voting.isPassed(challengeID)) {
-            whitelistApplication(_user);
+            whitelistApplication(_member);
             // Unlock stake so that it can be retrieved by the applicant
-            members[_user].unstakedDeposit += reward;
+            members[_member].unstakedDeposit += reward;
 
             _ChallengeFailed(challengeID);
-            if (!wasWhitelisted) { _NewMemberWhitelisted(_user); }
+            if (!wasWhitelisted) { _NewMemberWhitelisted(_member); }
         }
         // Case: challenge succeeded
         else {
-            resetMember(_user);
+            resetMember(_member);
             // Transfer the reward to the challenger
             require(token.transfer(challenges[challengeID].challenger, reward));
 
             _ChallengeSucceeded(challengeID);
-            if (wasWhitelisted) { _MemberRemoved(_user); }
-            else { _ApplicationRemoved(_user); }
+            if (wasWhitelisted) { _MemberRemoved(_member); }
+            else { _ApplicationRemoved(_member); }
         }
 
         // Sets flag on challenge being processed
@@ -431,23 +425,23 @@ contract Registry {
     @dev                Called by updateStatus() if the applicationExpiry date passed without a
                         challenge being made. Called by resolveChallenge() if an
                         application/member beat a challenge.
-    @param _user The users address
+    @param _member      The member being examined
     */
-    function whitelistApplication(address _user) private {
-        members[_user].whitelisted = true;
+    function whitelistApplication(address _member) private {
+        members[_member].whitelisted = true;
     }
 
     /**
-    @dev                Deletes a memberHash from the whitelist and transfers tokens back to owner
-    @param _user        User being reset
+    @dev                Deletes a member from the whitelist and transfers tokens back to owner
+    @param _member      The member being reset
     */
-    function resetMember(address _user) private {
-        Member storage member = members[_user];
+    function resetMember(address _member) private {
+        Member storage member = members[_member];
 
         // Transfers any remaining balance back to the owner
         if (member.unstakedDeposit > 0)
-            require(token.transfer(_user, member.unstakedDeposit));
+            require(token.transfer(_member, member.unstakedDeposit));
 
-        delete members[_user];
+        delete members[_member];
     }
 }
