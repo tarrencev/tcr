@@ -18,39 +18,36 @@ contract('Registry', (accounts) => {
     const minDeposit = bigTen(paramConfig.minDeposit);
     it('should return true if applicationExpiry was previously initialized', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('wasthismade.net');
 
       // Apply
-      await utils.as(applicant, registry.apply, listing, minDeposit, '');
-      const result = await registry.appWasMade(listing);
+      await utils.as(applicant, registry.apply, minDeposit, '');
+      const result = await registry.appWasMade(applicant);
       assert.strictEqual(result, true, 'should have returned true for the applied listing');
 
       // Commit stage complete
       await utils.increaseTime(paramConfig.commitStageLength + 1);
-      const resultTwo = await registry.appWasMade(listing);
+      const resultTwo = await registry.appWasMade(applicant);
       assert.strictEqual(resultTwo, true, 'should have returned true because app is still not expired');
 
       // Reveal stage complete, update status (whitelist it)
       await utils.increaseTime(paramConfig.revealStageLength + 1);
-      await utils.as(applicant, registry.updateStatus, listing);
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
+      await utils.as(applicant, registry.updateStatus, applicant);
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(isWhitelisted, true, 'should have been whitelisted');
-      const resultThree = await registry.appWasMade(listing);
+      const resultThree = await registry.appWasMade(applicant);
       assert.strictEqual(resultThree, true, 'should have returned true because its whitelisted');
 
       // Exit
-      await utils.as(applicant, registry.exit, listing);
-      const resultFour = await registry.appWasMade(listing);
+      await utils.as(applicant, registry.exit);
+      const resultFour = await registry.appWasMade(applicant);
       assert.strictEqual(resultFour, false, 'should have returned false because exit');
     });
 
     it('should return false if applicationExpiry was uninitialized', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('falseapp.net');
 
-      const result = await registry.appWasMade(listing);
+      const result = await registry.appWasMade(applicant);
       assert.strictEqual(result, false, 'should have returned false because listing was never applied');
     });
   });
 });
-

@@ -228,13 +228,14 @@ contract Registry {
     /**
     @dev                Updates a members status from 'application' to 'member' or resolves
                         a challenge if one exists.
+    @param _member      Member being challenged
     */
-    function updateStatus() public {
-        if (canBeWhitelisted(msg.sender)) {
-          whitelistApplication(msg.sender);
-          _NewMemberWhitelisted(msg.sender);
-        } else if (challengeCanBeResolved(msg.sender)) {
-          resolveChallenge(msg.sender);
+    function updateStatus(address _member) public {
+        if (canBeWhitelisted(_member)) {
+          whitelistApplication(_member);
+          _NewMemberWhitelisted(_member);
+        } else if (challengeCanBeResolved(_member)) {
+          resolveChallenge(_member);
         } else {
           revert();
         }

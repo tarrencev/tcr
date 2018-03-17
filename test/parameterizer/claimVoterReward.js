@@ -156,4 +156,3 @@ contract('Parameterizer', (accounts) => {
     it('should give zero tokens to a voter who cannot reveal a vote on the winning side.');
   });
 });
-
