@@ -51,7 +51,7 @@ contract Registry {
     mapping(uint => Challenge) public challenges;
 
     // Maps member to associated member data
-    mapping(address => Member) public members;
+    mapping(address => Member) public memberships;
 
     // Global Variables
     EIP20 public token;
@@ -110,7 +110,7 @@ contract Registry {
         require(_amount >= parameterizer.get("minDeposit"));
 
         // Sets owner
-        Member storage member = members[msg.sender];
+        Member storage member = memberships[msg.sender];
 
         // Transfers tokens from user to Registry contract
         require(token.transferFrom(msg.sender, this, _amount));
@@ -127,7 +127,7 @@ contract Registry {
     @param _amount      The number of ERC20 tokens to increase a members unstaked deposit
     */
     function deposit(uint _amount) external {
-        Member storage member = members[msg.sender];
+        Member storage member = memberships[msg.sender];
 
         require(token.transferFrom(msg.sender, this, _amount));
 
@@ -141,7 +141,7 @@ contract Registry {
     @param _amount      The number of ERC20 tokens to withdraw from the unstaked deposit.
     */
     function withdraw(uint _amount) external {
-        Member storage member = members[msg.sender];
+        Member storage member = memberships[msg.sender];
 
         require(_amount <= member.unstakedDeposit);
         require(member.unstakedDeposit - _amount >= parameterizer.get("minDeposit"));
@@ -158,7 +158,7 @@ contract Registry {
                         Returns all tokens to the member
     */
     function exit() external {
-        Member storage member = members[msg.sender];
+        Member storage member = memberships[msg.sender];
 
         require(isWhitelisted(msg.sender));
 
@@ -183,7 +183,7 @@ contract Registry {
     @param _data        Extra data relevant to the challenge. Think IPFS hashes.
     */
     function challenge(address _member, string _data) external returns (uint challengeID) {
-        Member storage member = members[_member];
+        Member storage member = memberships[_member];
         uint deposit = parameterizer.get("minDeposit");
 
         // Member must be in apply stage or already on the whitelist
@@ -296,7 +296,7 @@ contract Registry {
     @param _member      The member whose status is to be examined
     */
     function canBeWhitelisted(address _member) view public returns (bool) {
-        uint challengeID = members[_member].challengeID;
+        uint challengeID = memberships[_member].challengeID;
 
         // Ensures that the application was made,
         // the application period has ended,
@@ -304,7 +304,7 @@ contract Registry {
         // and either: the challengeID == 0, or the challenge has been resolved.
         if (
             appWasMade(_member) &&
-            members[_member].applicationExpiry < now &&
+            memberships[_member].applicationExpiry < now &&
             !isWhitelisted(_member) &&
             (challengeID == 0 || challenges[challengeID].resolved == true)
         ) { return true; }
@@ -317,7 +317,7 @@ contract Registry {
     @param _member      The member being examined
     */
     function isWhitelisted(address _member) view public returns (bool whitelisted) {
-        return members[_member].whitelisted;
+        return memberships[_member].whitelisted;
     }
 
     /**
@@ -325,7 +325,7 @@ contract Registry {
     @param _member      The member being examined
     */
     function appWasMade(address _member) view public returns (bool exists) {
-        return members[_member].applicationExpiry > 0;
+        return memberships[_member].applicationExpiry > 0;
     }
 
     /**
@@ -333,9 +333,9 @@ contract Registry {
     @param _member      The member being examined
     */
     function challengeExists(address _member) view public returns (bool) {
-        uint challengeID = members[_member].challengeID;
+        uint challengeID = memberships[_member].challengeID;
 
-        return (members[_member].challengeID > 0 && !challenges[challengeID].resolved);
+        return (memberships[_member].challengeID > 0 && !challenges[challengeID].resolved);
     }
 
     /**
@@ -344,7 +344,7 @@ contract Registry {
     @param _member      The member being examined
     */
     function challengeCanBeResolved(address _member) view public returns (bool) {
-        uint challengeID = members[_member].challengeID;
+        uint challengeID = memberships[_member].challengeID;
 
         require(challengeExists(_member));
 
@@ -385,7 +385,7 @@ contract Registry {
     @param _member      The member being examined
     */
     function resolveChallenge(address _member) private {
-        uint challengeID = members[_member].challengeID;
+        uint challengeID = memberships[_member].challengeID;
 
         // Calculates the winner's reward,
         // which is: (winner's full stake) + (dispensationPct * loser's stake)
@@ -398,7 +398,7 @@ contract Registry {
         if (voting.isPassed(challengeID)) {
             whitelistApplication(_member);
             // Unlock stake so that it can be retrieved by the applicant
-            members[_member].unstakedDeposit += reward;
+            memberships[_member].unstakedDeposit += reward;
 
             _ChallengeFailed(challengeID);
             if (!wasWhitelisted) { _NewMemberWhitelisted(_member); }
@@ -429,7 +429,7 @@ contract Registry {
     @param _member      The member being examined
     */
     function whitelistApplication(address _member) private {
-        members[_member].whitelisted = true;
+        memberships[_member].whitelisted = true;
     }
 
     /**
@@ -437,12 +437,12 @@ contract Registry {
     @param _member      The member being reset
     */
     function resetMember(address _member) private {
-        Member storage member = members[_member];
+        Member storage member = memberships[_member];
 
         // Transfers any remaining balance back to the owner
         if (member.unstakedDeposit > 0)
             require(token.transfer(_member, member.unstakedDeposit));
 
-        delete members[_member];
+        delete memberships[_member];
     }
 }

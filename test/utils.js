@@ -46,8 +46,8 @@ const utils = {
     `0x${abi.soliditySHA3(['uint', 'uint'], [vote, salt]).toString('hex')}`
   ),
 
-  getListingHash: domain => (
-    `0x${abi.soliditySHA3(['string'], [domain]).toString('hex')}`
+  getListingHash: member => (
+    member
   ),
 
   approvePLCR: async (address, adtAmount) => {
@@ -57,11 +57,11 @@ const utils = {
     await token.approve(plcrAddr, adtAmount, { from: address });
   },
 
-  addToWhitelist: async (domain, deposit, actor) => {
+  addToWhitelist: async (applicant, deposit) => {
     const registry = await Registry.deployed();
-    await utils.as(actor, registry.apply, domain, deposit, '');
+    await utils.as(applicant, registry.apply, deposit, '');
     await utils.increaseTime(paramConfig.applyStageLength + 1);
-    await utils.as(actor, registry.updateStatus, domain);
+    await utils.as(applicant, registry.updateStatus, applicant);
   },
 
   as: (actor, fn, ...args) => {
@@ -92,18 +92,18 @@ const utils = {
     err.toString().includes('revert')
   ),
 
-  getUnstakedDeposit: async (domain) => {
+  getUnstakedDeposit: async (membership) => {
     const registry = await Registry.deployed();
     // get the struct in the mapping
-    const listing = await registry.listings.call(domain);
+    const member = await registry.memberships.call(membership);
     // get the unstaked deposit amount from the listing struct
-    const unstakedDeposit = await listing[3];
+    const unstakedDeposit = await member[2];
     return unstakedDeposit.toString();
   },
 
-  challengeAndGetPollID: async (domain, actor) => {
+  challengeAndGetPollID: async (member, actor) => {
     const registry = await Registry.deployed();
-    const receipt = await utils.as(actor, registry.challenge, domain, '');
+    const receipt = await utils.as(actor, registry.challenge, member, '');
     return receipt.logs[0].args.pollID;
   },
 

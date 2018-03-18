@@ -17,19 +17,18 @@ contract('Registry', (accounts) => {
     it('should allow a listing to exit when no challenge exists', async () => {
       const registry = await Registry.deployed();
       const token = Token.at(await registry.token.call());
-      const listing = utils.getListingHash('consensys.net');
 
       const initialApplicantTokenHoldings = await token.balanceOf.call(applicant);
 
-      await utils.addToWhitelist(listing, paramConfig.minDeposit, applicant);
+      await utils.addToWhitelist(applicant, paramConfig.minDeposit);
 
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
-      assert.strictEqual(isWhitelisted, true, 'the listing was not added to the registry');
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
+      assert.strictEqual(isWhitelisted, true, 'the member was not added to the registry');
 
-      const receipt = await registry.exit(listing, { from: applicant });
+      const receipt = await registry.exit({ from: applicant });
 
-      const isWhitelistedAfterExit = await registry.isWhitelisted.call(listing);
-      assert.strictEqual(isWhitelistedAfterExit, false, 'the listing was not removed on exit');
+      const isWhitelistedAfterExit = await registry.isWhitelisted.call(applicant);
+      assert.strictEqual(isWhitelistedAfterExit, false, 'the member was not removed on exit');
 
       const finalApplicantTokenHoldings = await token.balanceOf.call(applicant);
       assert.strictEqual(
@@ -38,36 +37,35 @@ contract('Registry', (accounts) => {
         'the applicant\'s tokens were not returned to them after exiting the registry',
       );
 
-      const removedListing = utils.getReceiptValue(receipt, 'listingHash');
-      assert.strictEqual(removedListing, listing, 'The _ListingRemoved event did not fire properly');
+      const removedMember = utils.getReceiptValue(receipt, 'member');
+      assert.strictEqual(removedMember, applicant, 'The _MemberRemoved event did not fire properly');
     });
 
     it('should not allow a listing to exit when a challenge does exist', async () => {
       const registry = await Registry.deployed();
       const token = Token.at(await registry.token.call());
-      const listing = utils.getListingHash('consensys.net');
 
       const initialApplicantTokenHoldings = await token.balanceOf.call(applicant);
 
-      await utils.addToWhitelist(listing, paramConfig.minDeposit, applicant);
+      await utils.addToWhitelist(applicant, paramConfig.minDeposit);
 
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
-      assert.strictEqual(isWhitelisted, true, 'the listing was not added to the registry');
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
+      assert.strictEqual(isWhitelisted, true, 'the member was not added to the registry');
 
-      await registry.challenge(listing, '', { from: challenger });
+      await registry.challenge(applicant, '', { from: challenger });
       try {
-        await registry.exit(listing, { from: applicant });
+        await registry.exit({ from: applicant });
         assert(false, 'exit succeeded when it should have failed');
       } catch (err) {
         const errMsg = err.toString();
         assert(utils.isEVMException(err), errMsg);
       }
 
-      const isWhitelistedAfterExit = await registry.isWhitelisted.call(listing);
+      const isWhitelistedAfterExit = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(
         isWhitelistedAfterExit,
         true,
-        'the listing was able to exit while a challenge was active',
+        'the member was able to exit while a challenge was active',
       );
 
       const finalApplicantTokenHoldings = await token.balanceOf.call(applicant);
@@ -78,23 +76,22 @@ contract('Registry', (accounts) => {
 
       // Clean up state, remove consensys.net (it fails its challenge due to draw)
       await utils.increaseTime(paramConfig.commitStageLength + paramConfig.revealStageLength + 1);
-      await registry.updateStatus(listing);
+      await registry.updateStatus(applicant);
     });
 
     it('should not allow a listing to be exited by someone who doesn\'t own it', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('consensys.net');
 
-      await utils.addToWhitelist(listing, paramConfig.minDeposit, applicant);
+      await utils.addToWhitelist(applicant, paramConfig.minDeposit);
 
       try {
-        await registry.exit(listing, { from: voter });
+        await registry.exit({ from: voter });
         assert(false, 'exit succeeded when it should have failed');
       } catch (err) {
         const errMsg = err.toString();
         assert(utils.isEVMException(err), errMsg);
       }
-      const isWhitelistedAfterExit = await registry.isWhitelisted.call(listing);
+      const isWhitelistedAfterExit = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(
         isWhitelistedAfterExit,
         true,
@@ -103,4 +100,3 @@ contract('Registry', (accounts) => {
     });
   });
 });
-

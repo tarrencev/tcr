@@ -21,16 +21,15 @@ contract('Registry', (accounts) => {
     it('should successfully challenge an application', async () => {
       const registry = await Registry.deployed();
       const token = Token.at(await registry.token.call());
-      const listing = utils.getListingHash('failure.net');
 
       const challengerStartingBalance = await token.balanceOf.call(challenger);
 
-      await utils.as(applicant, registry.apply, listing, paramConfig.minDeposit, '');
-      await utils.challengeAndGetPollID(listing, challenger);
+      await utils.as(applicant, registry.apply, paramConfig.minDeposit, '');
+      await utils.challengeAndGetPollID(applicant, challenger);
       await utils.increaseTime(paramConfig.commitStageLength + paramConfig.revealStageLength + 1);
-      await registry.updateStatus(listing);
+      await registry.updateStatus(applicant);
 
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(isWhitelisted, false, 'An application which should have failed succeeded');
 
       const challengerFinalBalance = await token.balanceOf.call(challenger);
@@ -43,20 +42,19 @@ contract('Registry', (accounts) => {
       );
     });
 
-    it('should successfully challenge a listing', async () => {
+    it('should successfully challenge a member', async () => {
       const registry = await Registry.deployed();
       const token = Token.at(await registry.token.call());
-      const listing = utils.getListingHash('failure.net');
 
       const challengerStartingBalance = await token.balanceOf.call(challenger);
 
-      await utils.addToWhitelist(listing, paramConfig.minDeposit, applicant);
+      await utils.addToWhitelist(applicant, paramConfig.minDeposit);
 
-      await utils.challengeAndGetPollID(listing, challenger);
+      await utils.challengeAndGetPollID(applicant, challenger);
       await utils.increaseTime(paramConfig.commitStageLength + paramConfig.revealStageLength + 1);
-      await registry.updateStatus(listing);
+      await registry.updateStatus(applicant);
 
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(isWhitelisted, false, 'An application which should have failed succeeded');
 
       const challengerFinalBalance = await token.balanceOf.call(challenger);
@@ -72,24 +70,23 @@ contract('Registry', (accounts) => {
     it('should unsuccessfully challenge an application', async () => {
       const registry = await Registry.deployed();
       const voting = await utils.getVoting();
-      const listing = utils.getListingHash('winner.net');
       const minDeposit = new BN(paramConfig.minDeposit, 10);
 
-      await utils.as(applicant, registry.apply, listing, minDeposit, '');
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      await utils.as(applicant, registry.apply, minDeposit, '');
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
       await utils.commitVote(pollID, 1, 10, 420, voter);
       await utils.increaseTime(paramConfig.commitStageLength + 1);
       await utils.as(voter, voting.revealVote, pollID, 1, 420);
       await utils.increaseTime(paramConfig.revealStageLength + 1);
-      await registry.updateStatus(listing);
+      await registry.updateStatus(applicant);
 
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(
         isWhitelisted, true,
         'An application which should have succeeded failed',
       );
 
-      const unstakedDeposit = await utils.getUnstakedDeposit(listing);
+      const unstakedDeposit = await utils.getUnstakedDeposit(applicant);
       const expectedUnstakedDeposit =
         minDeposit.add(minDeposit.mul(bigTen(paramConfig.dispensationPct).div(bigTen(100))));
 
@@ -97,45 +94,47 @@ contract('Registry', (accounts) => {
         unstakedDeposit.toString(10), expectedUnstakedDeposit.toString(10),
         'The challenge winner was not properly disbursed their tokens',
       );
+
+      await registry.exit({ from: applicant });
     });
 
-    it('should unsuccessfully challenge a listing', async () => {
+    it('should unsuccessfully challenge a membership', async () => {
       const registry = await Registry.deployed();
       const voting = await utils.getVoting();
-      const listing = utils.getListingHash('winner2.net');
       const minDeposit = new BN(paramConfig.minDeposit, 10);
 
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
       await utils.commitVote(pollID, 1, 10, 420, voter);
       await utils.increaseTime(paramConfig.commitStageLength + 1);
       await utils.as(voter, voting.revealVote, pollID, 1, 420);
       await utils.increaseTime(paramConfig.revealStageLength + 1);
-      await registry.updateStatus(listing);
+      await registry.updateStatus(applicant);
 
-      const isWhitelisted = await registry.isWhitelisted.call(listing);
+      const isWhitelisted = await registry.isWhitelisted.call(applicant);
       assert.strictEqual(isWhitelisted, true, 'An application which should have succeeded failed');
 
-      const unstakedDeposit = await utils.getUnstakedDeposit(listing);
+      const unstakedDeposit = await utils.getUnstakedDeposit(applicant);
       const expectedUnstakedDeposit = minDeposit.add(minDeposit.mul(new BN(paramConfig.dispensationPct, 10).div(new BN('100', 10))));
       assert.strictEqual(
         unstakedDeposit.toString(10), expectedUnstakedDeposit.toString(10),
         'The challenge winner was not properly disbursed their tokens',
       );
+
+      await registry.exit({ from: applicant });
     });
 
-    it('should touch-and-remove a listing with a depost below the current minimum', async () => {
+    it('should touch-and-remove a member with a depost below the current minimum', async () => {
       const registry = await Registry.deployed();
       const parameterizer = await Parameterizer.deployed();
       const token = Token.at(await registry.token.call());
-      const listing = utils.getListingHash('touchandremove.net');
       const minDeposit = new BN(paramConfig.minDeposit, 10);
       const newMinDeposit = minDeposit.add(new BN('1', 10));
 
       const applicantStartingBal = await token.balanceOf.call(applicant);
 
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
       const receipt = await utils.as(
         proposer, parameterizer.proposeReparameterization,
@@ -148,7 +147,7 @@ contract('Registry', (accounts) => {
       await parameterizer.processProposal(propID);
 
       const challengerStartingBal = await token.balanceOf.call(challenger);
-      utils.as(challenger, registry.challenge, listing, '');
+      utils.as(challenger, registry.challenge, applicant, '');
       const challengerFinalBal = await token.balanceOf.call(challenger);
 
       assert(
@@ -163,8 +162,7 @@ contract('Registry', (accounts) => {
         'Tokens were not returned to applicant',
       );
 
-      assert(!await registry.isWhitelisted.call(listing), 'Listing was not removed');
+      assert(!await registry.isWhitelisted.call(applicant), 'Member was not removed');
     });
   });
 });
-
