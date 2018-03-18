@@ -67,19 +67,10 @@ contract('Registry', (accounts) => {
       ).sub(bigTen(minDeposit));
 
       assert.strictEqual(afterIncDeposit, expectedAmount.toString(10), 'Deposit should have increased for whitelisted, challenged listing');
-      // await registry.exit({ from: applicant });
-    });
 
-    // it('should not increase deposit for a listing not owned by the msg.sender', async () => {
-    //   const registry = await Registry.deployed();
-    //   await utils.addToWhitelist(applicant, minDeposit);
-    //
-    //   try {
-    //     await utils.as(challenger, registry.deposit, listing, incAmount);
-    //     assert(false, 'Deposit should not have increased when sent by the wrong msg.sender');
-    //   } catch (err) {
-    //     assert(utils.isEVMException(err), err.toString());
-    //   }
-    // });
+      // Finalize challenge and remove applicant from whitelist
+      await utils.increaseTime(paramConfig.commitStageLength + paramConfig.revealStageLength + 1);
+      await registry.updateStatus(applicant);
+    });
   });
 });
