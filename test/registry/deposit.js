@@ -18,69 +18,68 @@ contract('Registry', (accounts) => {
     const incAmount = minDeposit.div(bigTen(2));
     const [applicant, challenger] = accounts;
 
-    it('should increase the deposit for a specific listing in the listing', async () => {
+    it('should increase the deposit for a specific member in the membership', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('specificlisting.net');
 
-      await utils.addToWhitelist(listing, minDeposit, applicant);
-      await utils.as(applicant, registry.deposit, listing, incAmount);
+      await utils.addToWhitelist(applicant, minDeposit);
+      await utils.as(applicant, registry.deposit, incAmount);
 
-      const unstakedDeposit = await utils.getUnstakedDeposit(listing);
+      const unstakedDeposit = await utils.getUnstakedDeposit(applicant);
       const expectedAmount = incAmount.add(minDeposit);
       assert.strictEqual(
         unstakedDeposit, expectedAmount.toString(10),
         'Unstaked deposit should be equal to the sum of the original + increase amount',
       );
+
+      await registry.exit({ from: applicant });
     });
 
     it('should increase a deposit for a pending application', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('pendinglisting.net');
-      await utils.as(applicant, registry.apply, listing, minDeposit, '');
+      await utils.as(applicant, registry.apply, minDeposit, '');
 
-      try {
-        await utils.as(applicant, registry.deposit, listing, incAmount);
+      await utils.as(applicant, registry.deposit, incAmount);
 
-        const unstakedDeposit = await utils.getUnstakedDeposit(listing);
-        const expectedAmount = incAmount.add(minDeposit);
-        assert.strictEqual(unstakedDeposit, expectedAmount.toString(10), 'Deposit should have increased for pending application');
-      } catch (err) {
-        const errMsg = err.toString();
-        assert(utils.isEVMException(err), errMsg);
-      }
+      const unstakedDeposit = await utils.getUnstakedDeposit(applicant);
+      const expectedAmount = incAmount.add(minDeposit);
+      assert.strictEqual(unstakedDeposit, expectedAmount.toString(10), 'Deposit should have increased for pending application');
+
+      // Cleanup application
+      await utils.increaseTime(paramConfig.applyStageLength + 1);
+      await utils.as(applicant, registry.updateStatus, applicant);
+      await registry.exit({ from: applicant });
     });
 
-    it('should increase deposit for a whitelisted, challenged listing', async () => {
+    it('should increase deposit for a whitelisted, challenged membership', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('challengelisting.net');
-      await utils.addToWhitelist(listing, minDeposit, applicant);
-      const originalDeposit = await utils.getUnstakedDeposit(listing);
+
+      await utils.addToWhitelist(applicant, minDeposit);
+      const originalDeposit = await utils.getUnstakedDeposit(applicant);
 
       // challenge, then increase deposit
-      await utils.as(challenger, registry.challenge, listing, '');
-      await utils.as(applicant, registry.deposit, listing, incAmount);
+      await utils.as(challenger, registry.challenge, applicant, '');
+      await utils.as(applicant, registry.deposit, incAmount);
 
-      const afterIncDeposit = await utils.getUnstakedDeposit(listing);
+      const afterIncDeposit = await utils.getUnstakedDeposit(applicant);
 
       const expectedAmount = (
         bigTen(originalDeposit).add(bigTen(incAmount))
       ).sub(bigTen(minDeposit));
 
       assert.strictEqual(afterIncDeposit, expectedAmount.toString(10), 'Deposit should have increased for whitelisted, challenged listing');
+      // await registry.exit({ from: applicant });
     });
 
-    it('should not increase deposit for a listing not owned by the msg.sender', async () => {
-      const registry = await Registry.deployed();
-      const listing = utils.getListingHash('notowner.com');
-      await utils.addToWhitelist(listing, minDeposit, applicant);
-
-      try {
-        await utils.as(challenger, registry.deposit, listing, incAmount);
-        assert(false, 'Deposit should not have increased when sent by the wrong msg.sender');
-      } catch (err) {
-        assert(utils.isEVMException(err), err.toString());
-      }
-    });
+    // it('should not increase deposit for a listing not owned by the msg.sender', async () => {
+    //   const registry = await Registry.deployed();
+    //   await utils.addToWhitelist(applicant, minDeposit);
+    //
+    //   try {
+    //     await utils.as(challenger, registry.deposit, listing, incAmount);
+    //     assert(false, 'Deposit should not have increased when sent by the wrong msg.sender');
+    //   } catch (err) {
+    //     assert(utils.isEVMException(err), err.toString());
+    //   }
+    // });
   });
 });
-

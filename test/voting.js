@@ -11,7 +11,7 @@ const paramConfig = config.paramDefaults;
 
 contract('PLCRVoting', (accounts) => {
   describe('Function: commitVote', () => {
-    const [applicant, challenger, voter] = accounts;
+    const [applicant, challenger, voter, applicant2] = accounts;
 
     it('should correctly update DLL state', async () => {
       const registry = await Registry.deployed();
@@ -20,10 +20,10 @@ contract('PLCRVoting', (accounts) => {
       const secondDomain = 'second.net';
       const minDeposit = new BN(paramConfig.minDeposit, 10);
 
-      await utils.as(applicant, registry.apply, firstDomain, minDeposit, '');
-      await utils.as(applicant, registry.apply, secondDomain, minDeposit, '');
-      const firstPollID = await utils.challengeAndGetPollID(firstDomain, challenger);
-      const secondPollID = await utils.challengeAndGetPollID(secondDomain, challenger);
+      await utils.as(applicant, registry.apply, minDeposit, '');
+      await utils.as(applicant2, registry.apply, minDeposit, '');
+      const firstPollID = await utils.challengeAndGetPollID(applicant, challenger);
+      const secondPollID = await utils.challengeAndGetPollID(applicant2, challenger);
       await utils.commitVote(firstPollID, 1, 7, 420, voter);
       await utils.commitVote(secondPollID, 1, 8, 420, voter);
       await utils.commitVote(firstPollID, 1, 9, 420, voter);

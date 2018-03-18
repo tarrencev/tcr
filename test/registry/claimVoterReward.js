@@ -22,14 +22,13 @@ contract('Registry', (accounts) => {
       const registry = await Registry.deployed();
       const voting = await utils.getVoting();
       const token = Token.at(await registry.token.call());
-      const listing = utils.getListingHash('claimthis.net');
 
       // Apply
-      await utils.as(applicant, registry.apply, listing, minDeposit, '');
+      await utils.as(applicant, registry.apply, minDeposit, '');
       const aliceStartingBalance = await token.balanceOf.call(voterAlice);
 
       // Challenge
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
 
       // Alice is so committed
       await utils.commitVote(pollID, '0', 500, '420', voterAlice);
@@ -40,7 +39,7 @@ contract('Registry', (accounts) => {
       await utils.increaseTime(paramConfig.revealStageLength + 1);
 
       // Update status
-      await utils.as(applicant, registry.updateStatus, listing);
+      await utils.as(applicant, registry.updateStatus, applicant);
 
       // Alice claims reward
       const aliceVoterReward = await registry.voterReward(voterAlice, pollID, '420');
@@ -60,8 +59,7 @@ contract('Registry', (accounts) => {
 
     it('should revert if challenge does not exist', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('reversion.net');
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
       try {
         const nonPollID = '666';
@@ -70,19 +68,20 @@ contract('Registry', (accounts) => {
       } catch (err) {
         assert(utils.isEVMException(err), err.toString());
       }
+
+      await registry.exit({ from: applicant });
     });
 
     it('should revert if provided salt is incorrect', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('sugar.net');
       const voting = await utils.getVoting();
       const token = Token.at(await registry.token.call());
 
       const applicantStartingBalance = await token.balanceOf.call(applicant);
       const aliceStartBal = await token.balanceOf.call(voterAlice);
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
 
       // Alice is so committed
       await utils.commitVote(pollID, '0', 500, '420', voterAlice);
@@ -106,7 +105,7 @@ contract('Registry', (accounts) => {
       );
 
       // Update status
-      await utils.as(applicant, registry.updateStatus, listing);
+      await utils.as(applicant, registry.updateStatus, applicant);
 
       try {
         await utils.as(voterAlice, registry.claimVoterReward, pollID, '421');
@@ -118,17 +117,16 @@ contract('Registry', (accounts) => {
 
     it('should not transfer tokens if msg.sender has already claimed tokens for a challenge', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('sugar.net');
       const voting = await utils.getVoting();
       const token = Token.at(await registry.token.call());
 
       const applicantStartingBalance = await token.balanceOf.call(applicant);
       const aliceStartingBalance = await token.balanceOf.call(voterAlice);
 
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
       // Challenge
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
 
       // Alice is so committed
       await utils.commitVote(pollID, '0', 500, '420', voterAlice);
@@ -139,7 +137,7 @@ contract('Registry', (accounts) => {
       await utils.increaseTime(paramConfig.revealStageLength + 1);
 
       // Update status
-      await utils.as(applicant, registry.updateStatus, listing);
+      await utils.as(applicant, registry.updateStatus, applicant);
 
       // Claim reward
       await utils.as(voterAlice, registry.claimVoterReward, pollID, '420');
@@ -169,17 +167,16 @@ contract('Registry', (accounts) => {
 
     it('should not transfer tokens for an unresolved challenge', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('unresolved.net');
       const voting = await utils.getVoting();
       const token = Token.at(await registry.token.call());
 
       const applicantStartingBalance = await token.balanceOf.call(applicant);
       const aliceStartingBalance = await token.balanceOf.call(voterAlice);
 
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
       // Challenge
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
 
       // Alice is so committed
       await utils.commitVote(pollID, '0', 500, '420', voterAlice);
@@ -213,4 +210,3 @@ contract('Registry', (accounts) => {
     });
   });
 });
-

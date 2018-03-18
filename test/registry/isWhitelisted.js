@@ -13,20 +13,17 @@ contract('Registry', (accounts) => {
   describe('Function: isWhitelisted', () => {
     const [applicant] = accounts;
 
-    it('should verify a listing is not in the whitelist', async () => {
+    it('should verify a membership is not in the whitelist', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('eth.eth'); // the listing to be tested
-      const result = await registry.isWhitelisted.call(listing);
-      assert.strictEqual(result, false, 'Listing should not be whitelisted');
+      const result = await registry.isWhitelisted.call(applicant);
+      assert.strictEqual(result, false, 'Member should not be whitelisted');
     });
 
-    it('should verify a listing is in the whitelist', async () => {
+    it('should verify a membership is in the whitelist', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('eth.eth');
-      await utils.addToWhitelist(listing, paramConfig.minDeposit, applicant);
-      const result = await registry.isWhitelisted.call(listing);
-      assert.strictEqual(result, true, 'Listing should have been whitelisted');
+      await utils.addToWhitelist(applicant, paramConfig.minDeposit);
+      const result = await registry.isWhitelisted.call(applicant);
+      assert.strictEqual(result, true, 'Member should have been whitelisted');
     });
   });
 });
-

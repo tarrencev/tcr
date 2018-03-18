@@ -22,22 +22,21 @@ contract('Registry', (accounts) => {
     it('should withdraw tokens for a listing that has deposit > minDeposit', async () => {
       const registry = await Registry.deployed();
       const token = EIP20.at(await registry.token());
-      const listing = utils.getListingHash('bigfish.net');
       const errMsg = 'applicant was not able to withdraw tokens';
 
       // Add the listing to the whitelist, then increase the listing's deposit by 1
-      await utils.addToWhitelist(listing, minDeposit, applicant);
-      await utils.as(applicant, registry.deposit, listing, '1');
+      await utils.addToWhitelist(applicant, minDeposit);
+      await utils.as(applicant, registry.deposit, '1');
 
       // Capture initial state
-      const startingDeposit = await utils.getUnstakedDeposit(listing);
+      const startingDeposit = await utils.getUnstakedDeposit(applicant);
       const startingBalance = await token.balanceOf.call(applicant);
 
       // Withdraw 1 from the deposit
-      await utils.as(applicant, registry.withdraw, listing, '1');
+      await utils.as(applicant, registry.withdraw, '1');
 
       // Get final state
-      const finalDeposit = await utils.getUnstakedDeposit(listing);
+      const finalDeposit = await utils.getUnstakedDeposit(applicant);
       const finalBalance = await token.balanceOf.call(applicant);
 
       // The final deposit should be the starting deposit minus 1.
@@ -53,39 +52,41 @@ contract('Registry', (accounts) => {
         startingBalance.plus(new BN('1', 10)).toString(10),
         errMsg,
       );
+
+      await utils.removeFromWhitelist(applicant);
     });
 
-    it('should not withdraw tokens from a listing that has a deposit === minDeposit', async () => {
+    it('should not withdraw tokens from a member that has a deposit === minDeposit', async () => {
       const registry = await Registry.deployed();
-      const dontChallengeListing = 'dontchallenge.net';
       const errMsg = 'applicant was able to withdraw tokens';
 
-      await utils.addToWhitelist(dontChallengeListing, minDeposit, applicant);
-      const origDeposit = await utils.getUnstakedDeposit(dontChallengeListing);
+      await utils.addToWhitelist(applicant, minDeposit);
+      const origDeposit = await utils.getUnstakedDeposit(applicant);
 
       try {
-        await utils.as(applicant, registry.withdraw, dontChallengeListing, withdrawAmount);
+        await utils.as(applicant, registry.withdraw, withdrawAmount);
         assert(false, errMsg);
       } catch (err) {
         assert(utils.isEVMException(err), err.toString());
       }
 
-      const afterWithdrawDeposit = await utils.getUnstakedDeposit(dontChallengeListing);
+      const afterWithdrawDeposit = await utils.getUnstakedDeposit(applicant);
 
       assert.strictEqual(afterWithdrawDeposit.toString(10), origDeposit.toString(10), errMsg);
+
+      await utils.removeFromWhitelist(applicant);
     });
 
     it('should not withdraw tokens from a listing that is locked in a challenge', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('shouldntwithdraw.net');
 
       // Whitelist, then challenge
-      await utils.addToWhitelist(listing, minDeposit, applicant);
-      await utils.as(challenger, registry.challenge, listing, '');
+      await utils.addToWhitelist(applicant, minDeposit);
+      await utils.as(challenger, registry.challenge, applicant, '');
 
       try {
         // Attempt to withdraw; should fail
-        await utils.as(applicant, registry.withdraw, listing, withdrawAmount);
+        await utils.as(applicant, registry.withdraw, withdrawAmount);
         assert.strictEqual(false, 'Applicant should not have been able to withdraw from a challenged, locked listing');
       } catch (err) {
         const errMsg = err.toString();
@@ -98,4 +99,3 @@ contract('Registry', (accounts) => {
     });
   });
 });
-

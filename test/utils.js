@@ -64,6 +64,11 @@ const utils = {
     await utils.as(applicant, registry.updateStatus, applicant);
   },
 
+  removeFromWhitelist: async (applicant) => {
+    const registry = await Registry.deployed();
+    await registry.exit({ from: applicant });
+  },
+
   as: (actor, fn, ...args) => {
     function detectSendObject(potentialSendObj) {
       function hasOwnProperty(obj, prop) {

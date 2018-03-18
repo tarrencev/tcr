@@ -17,29 +17,27 @@ contract('Registry', (accounts) => {
     const [applicant, challenger, voter] = accounts;
     const minDeposit = bigTen(paramConfig.minDeposit);
 
-    it('should apply, fail challenge, and reject listing', async () => {
+    it('should apply, fail challenge, and reject applicant', async () => {
       const registry = await Registry.deployed();
-      const listing = utils.getListingHash('failChallenge.net'); // listing to apply with
-      await registry.apply(listing, paramConfig.minDeposit, '', { from: applicant });
-      await registry.challenge(listing, '', { from: challenger });
+      await registry.apply(paramConfig.minDeposit, '', { from: applicant });
+      await registry.challenge(applicant, '', { from: challenger });
 
       await utils.increaseTime(paramConfig.revealStageLength + paramConfig.commitStageLength + 1);
-      await registry.updateStatus(listing);
+      await registry.updateStatus(applicant);
 
       // should not have been added to whitelist
-      const result = await registry.isWhitelisted(listing);
-      assert.strictEqual(result, false, 'listing should not be whitelisted');
+      const result = await registry.isWhitelisted(applicant);
+      assert.strictEqual(result, false, 'applicant should not be whitelisted');
     });
 
-    it('should apply, pass challenge, and whitelist listing', async () => {
+    it('should apply, pass challenge, and whitelist applicant', async () => {
       const registry = await Registry.deployed();
       const voting = await utils.getVoting();
-      const listing = utils.getListingHash('passChallenge.net');
 
-      await utils.as(applicant, registry.apply, listing, minDeposit, '');
+      await utils.as(applicant, registry.apply, minDeposit, '');
 
       // Challenge and get back the pollID
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
 
       // Make sure it's cool to commit
       const cpa = await voting.commitPeriodActive.call(pollID);
@@ -75,8 +73,8 @@ contract('Registry', (accounts) => {
       assert.strictEqual(pollResult, true, 'Poll should have passed');
 
       // Add to whitelist
-      await registry.updateStatus(listing);
-      const result = await registry.isWhitelisted(listing);
+      await registry.updateStatus(applicant);
+      const result = await registry.isWhitelisted(applicant);
       assert.strictEqual(result, true, 'Listing should be whitelisted');
     });
   });

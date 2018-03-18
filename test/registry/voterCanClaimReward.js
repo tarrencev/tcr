@@ -20,11 +20,10 @@ contract('Registry', (accounts) => {
     it('should report properly whether a voter has claimed tokens', async () => {
       const registry = await Registry.deployed();
       const voting = await utils.getVoting();
-      const listing = utils.getListingHash('claims.com');
 
-      await utils.addToWhitelist(listing, minDeposit, applicant);
+      await utils.addToWhitelist(applicant, minDeposit);
 
-      const pollID = await utils.challengeAndGetPollID(listing, challenger);
+      const pollID = await utils.challengeAndGetPollID(applicant, challenger);
 
       await utils.commitVote(pollID, '0', '10', '420', voter);
       await utils.increaseTime(paramConfig.commitStageLength + 1);
@@ -32,7 +31,7 @@ contract('Registry', (accounts) => {
       await utils.as(voter, voting.revealVote, pollID, '0', '420');
       await utils.increaseTime(paramConfig.revealStageLength + 1);
 
-      await utils.as(challenger, registry.updateStatus, listing);
+      await utils.as(challenger, registry.updateStatus, applicant);
 
       const initialHasClaimed = await registry.voterCanClaimReward.call(pollID, voter);
       assert.strictEqual(initialHasClaimed, false, 'The voter is purported to have claimed ' +
@@ -46,4 +45,3 @@ contract('Registry', (accounts) => {
     });
   });
 });
-

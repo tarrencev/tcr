@@ -13,12 +13,12 @@ contract('Registry', (accounts) => {
   describe('Function: apply', () => {
     const [applicant] = accounts;
 
-    it('should allow a new listing to apply', async () => {
+    it('should allow a new member to apply', async () => {
       const registry = await Registry.deployed();
       await utils.as(applicant, registry.apply, paramConfig.minDeposit, '');
 
       // get the struct in the mapping
-      const result = await registry.members.call(applicant);
+      const result = await registry.memberships.call(applicant);
       // check that Application is initialized correctly
       assert.strictEqual(result[0].gt(0), true, 'challenge time < now');
       assert.strictEqual(result[1], false, 'whitelisted != false');
